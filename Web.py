@@ -1,94 +1,104 @@
 import datetime
-import streamlit as st  # pyright: ignore[reportMissingImports]
+import ipaddress
+import requests
+import streamlit as st
 
 st.set_page_config(
-    page_title="Case Management Intake Portal",
+    page_title="IT Operations Portal",
     layout="wide"
 )
 
-st.sidebar.markdown("**Case Management System**")
-st.sidebar.info("Module: **SNAP & Medicaid Screening**")
-st.sidebar.caption(f"Date: {datetime.datetime.now().strftime('%Y-%m-%d')}")
+st.sidebar.markdown("**IT Service Desk**")
+st.sidebar.info("Environment: **PROD-US-EAST**")
+st.sidebar.caption(f"System Time: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M EST')}")
 
-st.title("Client Intake & Eligibility Screening Portal")
-st.write("Determine preliminary eligibility guidelines, gross income thresholds, and required documentation.")
+st.title("IT Infrastructure & Service Desk Operations Portal")
+st.write("Essential tools for network management, user provisioning, and endpoint diagnostic checks.")
 
 st.divider()
 
-# Section 1: Household & Income Screening
-st.markdown("**1. Income & Household Eligibility Screener**")
+# Section 1: User Onboarding Account Generator
+st.markdown("**1. User Provisioning & Credential Generator**")
+st.write("Generate standardized active directory usernames, email addresses, and temporary passphrases for new hires.")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    household_size = st.number_input("Household Size (Include all dependents):", min_value=1, max_value=10, value=3)
-    program_type = st.selectbox("Program Assistance Type:", ["SNAP (Food Stamps)", "Medicaid (Adult)", "Medicaid (Aged, Blind, Disabled)"])
+    first_name = st.text_input("First Name:", "Catrice")
+    department = st.selectbox("Department:", ["IT / Systems", "Administration", "Clinical Operations", "Finance", "Human Resources"])
 
 with col2:
-    gross_monthly_income = st.number_input("Total Household Gross Monthly Income ($):", min_value=0.0, value=2500.00, step=50.0)
-    has_elderly_disabled = st.checkbox("Household includes members 60+ or with verified disability")
+    last_name = st.text_input("Last Name:", "Smith")
+    domain = st.text_input("Company Domain:", "enterprise.org")
 
-# Eligibility Threshold Logic (Simplified Base Guidelines)
-snap_base_limit = 1580 + ((household_size - 1) * 560)  # Standard 130% FPL estimation
-medicaid_base_limit = 1640 + ((household_size - 1) * 580)
-
-if st.button("Calculate Preliminary Eligibility"):
-    st.divider()
+if st.button("Generate Provisioning Profile"):
+    clean_first = first_name.strip().lower()
+    clean_last = last_name.strip().lower()
     
-    if "SNAP" in program_type:
-        limit = snap_base_limit * (1.65 if has_elderly_disabled else 1.0)
-        st.markdown(f"**Program Standard:** SNAP Gross Income Limit for household size of **{household_size}** is approx **${limit:,.2f}/mo**")
+    if clean_first and clean_last:
+        username = f"{clean_first[0]}{clean_last}"
+        email = f"{clean_first}.{clean_last}@{domain}"
+        temp_pass = f"Welcome{datetime.datetime.now().year}!{clean_last.capitalize()}"
         
-        if gross_monthly_income <= limit:
-            st.success(f"**PRELIMINARY PASS:** Income of ${gross_monthly_income:,.2f} is under the gross limit.")
-        else:
-            st.warning(f"**OVER INCOME LIMIT:** Income exceeds ${limit:,.2f}. Check for applicable deductions (shelter, medical, child care).")
-
-    elif "Medicaid" in program_type:
-        limit = medicaid_base_limit
-        st.markdown(f"**Program Standard:** Estimated Medicaid Threshold for household size of **{household_size}** is approx **${limit:,.2f}/mo**")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("SamAccountName", username)
+        c2.metric("User Principal Name", email)
+        c3.metric("Temp Password", temp_pass)
         
-        if gross_monthly_income <= limit:
-            st.success(f"**PRELIMINARY PASS:** Income of ${gross_monthly_income:,.2f} meets baseline criteria.")
-        else:
-            st.error(f"**POTENTIALLY INELIGIBLE:** Income exceeds estimated baseline standard.")
+        st.code(f"""
+# PowerShell Script to Create Account
+New-ADUser -Name "{first_name} {last_name}" -SamAccountName "{username}" -UserPrincipalName "{email}" -Department "{department}" -AccountPassword (ConvertTo-SecureString "{temp_pass}" -AsPlainText -Force) -Enabled $true
+        """, language="powershell")
+    else:
+        st.error("Please enter both a first and last name.")
 
 st.divider()
 
-# Section 2: Verification Checklist Generator
-st.markdown("**2. Case Documentation & Verification Checklist**")
-st.write("Select verified client circumstances to generate required verification documents for the case file.")
+# Section 2: IPv4 Subnet Calculator
+st.markdown("**2. Network Subnet & IP Calculator**")
+st.write("Calculate network boundaries, broadcast addresses, and usable host capacity for network configuration.")
 
-c1, c2, c3 = st.columns(3)
-with c1:
-    v_earned = st.checkbox("Earned Income (W2 / Pay Stubs)")
-    v_unearned = st.checkbox("Unearned Income (SSI, SSDI, Unemployment)")
-with c2:
-    v_shelter = st.checkbox("Shelter Expenses (Rent / Mortgage)")
-    v_utility = st.checkbox("Utility Expenses (Electric, Gas, Water)")
-with c3:
-    v_medical = st.checkbox("Out-of-Pocket Medical Expenses")
-    v_citizenship = st.checkbox("Identity & Citizenship Documents")
+ip_input = st.text_input("Enter IP with CIDR Notation (e.g., 192.168.1.0/24):", "10.0.0.0/22")
 
-if st.button("Generate Required Verification List"):
-    required_docs = []
-    
-    if v_earned:
-        required_docs.append("Last 30 days of consecutive pay stubs or employer verification form.")
-    if v_unearned:
-        required_docs.append("Official award letter or current bank statement showing direct deposit.")
-    if v_shelter:
-        required_docs.append("Current lease agreement, mortgage statement, or rent receipt.")
-    if v_utility:
-        required_docs.append("Most recent utility bill showing service address.")
-    if v_medical:
-        required_docs.append("Itemized medical receipts or pharmacy printouts (for elderly/disabled members).")
-    if v_citizenship:
-        required_docs.append("State ID/Driver's License and Social Security Card or Birth Certificate.")
+if st.button("Calculate Subnet"):
+    try:
+        net = ipaddress.ip_network(ip_input, strict=False)
         
-    if required_docs:
-        st.write("**Required Action Items for Client Case File:**")
-        for doc in required_docs:
-            st.info(f"• {doc}")
-    else:
-        st.warning("No verification items selected.")
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Subnet Mask", str(net.netmask))
+        m2.metric("Network Address", str(net.network_address))
+        m3.metric("Broadcast Address", str(net.broadcast_address))
+        m4.metric("Usable Host Count", f"{net.num_addresses - 2:,}")
+        
+        hosts = list(net.hosts())
+        if hosts:
+            st.info(f"**Usable Range:** {hosts[0]} - {hosts[-1]}")
+    except ValueError:
+        st.error("Invalid CIDR format. Example of valid format: 192.168.1.0/24")
+
+st.divider()
+
+# Section 3: Web Service & API Probe
+st.markdown("**3. Endpoint Service Health Monitor**")
+st.write("Probe web services and HTTP APIs to verify network status and response latency.")
+
+target_url = st.text_input("Enter URL / Endpoint to Probe:", "https://google.com")
+
+if st.button("Check Service Status"):
+    with st.spinner("Pinging endpoint..."):
+        try:
+            res = requests.get(target_url, timeout=4)
+            status_code = res.status_code
+            latency = round(res.elapsed.total_seconds() * 1000, 2)
+            
+            p1, p2, p3 = st.columns(3)
+            if status_code == 200:
+                p1.success(f"Status: {status_code} OK")
+            else:
+                p1.warning(f"Status: {status_code}")
+                
+            p2.metric("Latency", f"{latency} ms")
+            p3.metric("Server Header", res.headers.get("Server", "Hidden / Unknown"))
+            
+        except Exception as e:
+            st.error(f"Connection Failed: {e}")
