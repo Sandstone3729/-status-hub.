@@ -24,7 +24,7 @@ st.write("Generate standardized active directory usernames, email addresses, and
 col1, col2 = st.columns(2)
 
 with col1:
-    first_name = st.text_input("First Name:", "Catrice")
+    first_name = st.text_input("First Name:", "John")
     department = st.selectbox("Department:", ["IT / Systems", "Administration", "Clinical Operations", "Finance", "Human Resources"])
 
 with col2:
