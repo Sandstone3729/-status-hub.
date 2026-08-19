@@ -1,84 +1,94 @@
-import re
-import requests  # pyright: ignore[reportMissingModuleSource]
+import datetime
 import streamlit as st  # pyright: ignore[reportMissingImports]
 
 st.set_page_config(
-    page_title="Security & IR Toolkit",
+    page_title="Case Management Intake Portal",
     layout="wide"
 )
 
-st.sidebar.markdown("**Security Toolkit**")
-st.sidebar.info("Status: **ACTIVE**")
+st.sidebar.markdown("**Case Management System**")
+st.sidebar.info("Module: **SNAP & Medicaid Screening**")
+st.sidebar.caption(f"Date: {datetime.datetime.now().strftime('%Y-%m-%d')}")
 
-st.title("Security Operations & Incident Response Toolkit")
-
-# Section 1: Live Global Threat Feed
-st.markdown("**1. Global Cyber Threat Feed**")
-st.write("Live vulnerability and threat updates pulled from CISA.")
-
-if st.button("Fetch Latest Threats"):
-    with st.spinner("Connecting to CISA feed..."):
-        try:
-            url = "https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json"
-            res = requests.get(url, timeout=5).json()
-            vulnerabilities = res.get("vulnerabilities", [])[:5]
-            
-            for v in vulnerabilities:
-                st.warning(f"**{v['cveID']}** - {v['vulnerabilityName']}")
-                st.caption(f"Vendor: {v['vendorProject']} | Added: {v['dateAdded']}")
-                st.write(v['shortDescription'])
-                st.divider()
-        except Exception as e:
-            st.error(f"Failed to load feed: {e}")
+st.title("Client Intake & Eligibility Screening Portal")
+st.write("Determine preliminary eligibility guidelines, gross income thresholds, and required documentation.")
 
 st.divider()
 
-# Section 2: Password & Entropy Analyzer
-st.markdown("**2. Password Security & Entropy Tester**")
-st.write("Evaluate password complexity and mathematical entropy.")
+# Section 1: Household & Income Screening
+st.markdown("**1. Income & Household Eligibility Screener**")
 
-user_pass = st.text_input("Enter test string:", type="password")
+col1, col2 = st.columns(2)
 
-if user_pass:
-    length = len(user_pass)
-    has_upper = bool(re.search(r'[A-Z]', user_pass))
-    has_lower = bool(re.search(r'[a-z]', user_pass))
-    has_digit = bool(re.search(r'\d', user_pass))
-    has_special = bool(re.search(r'[^A-Za-z0-9]', user_pass))
+with col1:
+    household_size = st.number_input("Household Size (Include all dependents):", min_value=1, max_value=10, value=3)
+    program_type = st.selectbox("Program Assistance Type:", ["SNAP (Food Stamps)", "Medicaid (Adult)", "Medicaid (Aged, Blind, Disabled)"])
+
+with col2:
+    gross_monthly_income = st.number_input("Total Household Gross Monthly Income ($):", min_value=0.0, value=2500.00, step=50.0)
+    has_elderly_disabled = st.checkbox("Household includes members 60+ or with verified disability")
+
+# Eligibility Threshold Logic (Simplified Base Guidelines)
+snap_base_limit = 1580 + ((household_size - 1) * 560)  # Standard 130% FPL estimation
+medicaid_base_limit = 1640 + ((household_size - 1) * 580)
+
+if st.button("Calculate Preliminary Eligibility"):
+    st.divider()
     
-    score = sum([has_upper, has_lower, has_digit, has_special])
+    if "SNAP" in program_type:
+        limit = snap_base_limit * (1.65 if has_elderly_disabled else 1.0)
+        st.markdown(f"**Program Standard:** SNAP Gross Income Limit for household size of **{household_size}** is approx **${limit:,.2f}/mo**")
+        
+        if gross_monthly_income <= limit:
+            st.success(f"**PRELIMINARY PASS:** Income of ${gross_monthly_income:,.2f} is under the gross limit.")
+        else:
+            st.warning(f"**OVER INCOME LIMIT:** Income exceeds ${limit:,.2f}. Check for applicable deductions (shelter, medical, child care).")
+
+    elif "Medicaid" in program_type:
+        limit = medicaid_base_limit
+        st.markdown(f"**Program Standard:** Estimated Medicaid Threshold for household size of **{household_size}** is approx **${limit:,.2f}/mo**")
+        
+        if gross_monthly_income <= limit:
+            st.success(f"**PRELIMINARY PASS:** Income of ${gross_monthly_income:,.2f} meets baseline criteria.")
+        else:
+            st.error(f"**POTENTIALLY INELIGIBLE:** Income exceeds estimated baseline standard.")
+
+st.divider()
+
+# Section 2: Verification Checklist Generator
+st.markdown("**2. Case Documentation & Verification Checklist**")
+st.write("Select verified client circumstances to generate required verification documents for the case file.")
+
+c1, c2, c3 = st.columns(3)
+with c1:
+    v_earned = st.checkbox("Earned Income (W2 / Pay Stubs)")
+    v_unearned = st.checkbox("Unearned Income (SSI, SSDI, Unemployment)")
+with c2:
+    v_shelter = st.checkbox("Shelter Expenses (Rent / Mortgage)")
+    v_utility = st.checkbox("Utility Expenses (Electric, Gas, Water)")
+with c3:
+    v_medical = st.checkbox("Out-of-Pocket Medical Expenses")
+    v_citizenship = st.checkbox("Identity & Citizenship Documents")
+
+if st.button("Generate Required Verification List"):
+    required_docs = []
     
-    col1, col2 = st.columns(2)
-    col1.metric("Character Length", length)
-    
-    if length < 8 or score < 2:
-        col2.error("Weak Structure")
-    elif length >= 12 and score >= 3:
-        col2.success("Strong Structure")
+    if v_earned:
+        required_docs.append("Last 30 days of consecutive pay stubs or employer verification form.")
+    if v_unearned:
+        required_docs.append("Official award letter or current bank statement showing direct deposit.")
+    if v_shelter:
+        required_docs.append("Current lease agreement, mortgage statement, or rent receipt.")
+    if v_utility:
+        required_docs.append("Most recent utility bill showing service address.")
+    if v_medical:
+        required_docs.append("Itemized medical receipts or pharmacy printouts (for elderly/disabled members).")
+    if v_citizenship:
+        required_docs.append("State ID/Driver's License and Social Security Card or Birth Certificate.")
+        
+    if required_docs:
+        st.write("**Required Action Items for Client Case File:**")
+        for doc in required_docs:
+            st.info(f"• {doc}")
     else:
-        col2.warning("Moderate Structure")
-
-st.divider()
-
-# Section 3: Interactive Log Parser
-st.markdown("**3. Raw Log Parser & IP Extractor**")
-st.write("Paste server logs to extract IP addresses and identify failed access attempts.")
-
-sample_log = """192.168.1.50 - - [19/Aug/2026:10:00:01] "GET /admin HTTP/1.1" 401 512
-203.0.113.195 - - [19/Aug/2026:10:00:05] "POST /login HTTP/1.1" 403 230
-198.51.100.24 - - [19/Aug/2026:10:01:12] "GET /index.html HTTP/1.1" 200 4500
-203.0.113.195 - - [19/Aug/2026:10:01:15] "POST /login HTTP/1.1" 403 230"""
-
-log_data = st.text_area("Paste Log File Text:", sample_log, height=150)
-
-if st.button("Analyze Logs"):
-    ip_pattern = r'\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b'
-    found_ips = re.findall(ip_pattern, log_data)
-    failed_attempts = re.findall(r'(\b(?:[0-9]{1,3}\.){3}[0-9]{1,3}\b).*?(?:401|403)', log_data)
-    
-    c1, c2 = st.columns(2)
-    c1.metric("Total IPs Found", len(set(found_ips)))
-    c2.metric("Failed Login Attempts (401/403)", len(failed_attempts))
-    
-    st.write("**Extracted IP Addresses:**")
-    st.json(list(set(found_ips)))
+        st.warning("No verification items selected.")
